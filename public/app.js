@@ -470,7 +470,7 @@ function renderYesNo(q) {
       if (!el.checked) return;
       STATE.answers[q.id] = el.value;
       dom.nextBtn.disabled = false;
-      renderCtaFor(q, el.value);
+      // No CTA on this slide — form submits on Next
     });
   });
 }
@@ -513,13 +513,9 @@ function nextQuestion() {
   if (!validateCurrent(q)) return;
   const val = STATE.answers[q.id];
 
-  // Yes/No handling: Yes → show CTA; No → completion.
+  // Yes/No handling: Yes or No → go to completion.
+  // The CTA will be shown on the completion page only if they answered "Yes".
   if (q.type === 'yesno') {
-    if (val === 'Yes') {
-      renderCta(q);
-      return;
-    }
-    // 'No' → complete survey (skip CTA).
     completeSurvey();
     return;
   }
@@ -658,6 +654,20 @@ function showCompletion() {
   dom.startBtn.disabled = true;
   dom.nextBtn.disabled = true;
   dom.shareBtn.disabled = false;
+
+  // Show CTA on completion page only if the user answered "Yes" to Q7.
+  const q7Value = STATE.answers.q7;
+  const ctnaEl = document.getElementById('completionCta');
+  const ctaLink = document.getElementById('completionCtaLink');
+  if (q7Value === 'Yes') {
+    // Set the CTA link to the Cal.com URL.
+    const ctaUrl = 'https://cal.com/levine/angelos-demo';
+    ctaLink.href = ctaUrl;
+    ctaLink.textContent = 'Book a 20-minute demo';
+    ctnaEl.style.display = 'block';
+  } else {
+    ctnaEl.style.display = 'none';
+  }
 }
 
 // ---------------------------------------------------------------------------

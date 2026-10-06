@@ -412,6 +412,39 @@ html, body {
   border-color: var(--primary);
 }
 
+/* Completion CTA (Q7 Yes → appears on completion page) */
+.completion-cta {
+  margin-top: 24px;
+  padding: 20px;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  background: var(--primary-soft);
+}
+
+.completion-cta__label {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.completion-cta__cta {
+  color: #fff;
+  padding: 14px 28px;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+}
+
+.completion-cta__cta:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
 /* Responsive */
 @media (max-width: 520px) {
   .progress-bar { padding: 14px 16px 12px; }
