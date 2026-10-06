@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Angel Investor Survey</title>
+  <meta name="description" content="Seven quick questions about how individual angels track their investments." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- Progress bar -->
+    <header class="progress-bar" aria-hidden="true">
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-labels">
+        <span id="progressLabel">1</span>
+        <span class="progress-dash">/</span>
+        <span id="progressTotal">7</span>
+      </div>
+    </header>
+
+    <!-- Slides -->
+    <main class="slides">
+
+      <!-- Intro -->
+      <section class="slide intro-slide" id="introSlide">
+        <div class="card intro-card">
+          <p class="eyebrow">Individual angel investor survey</p>
+          <h1>How do you manage your angel investing?</h1>
+          <p class="lede">Seven quick questions, under a minute. No right answers, and we're not selling anything here.</p>
+          <button class="btn-primary btn-start" id="startBtn">Start</button>
+        </div>
+      </section>
+
+      <!-- Question -->
+      <section class="slide question-slide" id="questionSlide">
+        <div class="slide-numbers">
+          <span class="slide-number" id="questionNumber">1</span>
+          <span class="slide-sep">/</span>
+          <span class="slide-number slide-number--total">7</span>
+        </div>
+
+        <h2 class="question-text" id="questionText">Where are you based?</h2>
+
+        <div class="options" id="optionsContainer"></div>
+
+        <div class="text-input-container" id="textInputContainer" style="display:none">
+          <textarea
+            id="textInput"
+            class="text-input"
+            placeholder="One sentence is plenty"
+            maxlength="280"
+            rows="1"
+            autocomplete="off"
+          ></textarea>
+          <div class="char-count" id="charCount">0 / 280</div>
+        </div>
+
+        <div class="question-hint" id="questionHint"></div>
+
+        <button class="btn-next" id="nextBtn">Next</button>
+      </section>
+
+      <!-- Completion -->
+      <section class="slide complete-slide" id="completeSlide">
+        <div class="card complete-card">
+          <div class="complete-check" aria-hidden="true"></div>
+          <h2>Thank you, that's really helpful.</h2>
+          <p class="complete-copy">Your answers will shape what we build for angels.</p>
+          <p class="complete-copy">Know another angel who'd have a view? Please pass the link on.</p>
+          <button class="btn-primary btn-share" id="shareBtn">Share with an angel</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

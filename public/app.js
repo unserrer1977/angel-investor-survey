@@ -1,0 +1,630 @@
+/**
+ * Angel Investor Survey — frontend
+ *
+ * Single-page survey driven by the question catalogue defined at the top.
+ * Behaviour mirrors the PRD:
+ *   - One question per screen; single-choice auto-advances.
+ *   - Q4 "Other" reveals a free-text box.
+ *   - Q5: pick up to 3, "None of these" exclusive & fixed last, shuffled.
+ *   - Q6: 280-char limit.  Q7: valid email if filled.
+ *   - Hidden tracking: completion time, traffic source (from ?src=…).
+ */
+
+const SURVEY = {
+  title: 'Angel Investor Survey',
+  intro: {
+    heading: 'How do you manage your angel investing?',
+    lede: 'Seven quick questions, under a minute. No right answers, and we\'re not selling anything here.',
+  },
+  questions: [
+    {
+      id: 'q1',
+      label: '1 / 7',
+      text: 'Where are you based?',
+      type: 'single',
+      required: true,
+      options: ['UK', 'Rest of Europe', 'UAE', 'Saudi Arabia', 'Qatar', 'Other Middle East', 'North America', 'Rest of the world'],
+    },
+    {
+      id: 'q2',
+      label: '2 / 7',
+      text: 'How many angel investments do you hold today?',
+      type: 'single',
+      required: true,
+      options: ['None yet', '1 to 4', '5 to 9', '10 to 24', '25 or more'],
+    },
+    {
+      id: 'q3',
+      label: '3 / 7',
+      text: 'How many angel groups, networks or syndicates do you invest through?',
+      type: 'single',
+      required: true,
+      options: ['None, I invest on my own', '1', '2 to 3', '4 or more'],
+    },
+    {
+      id: 'q4',
+      label: '4 / 7',
+      text: 'What do you mainly use to keep track of your angel investments?',
+      type: 'single',
+      required: true,
+      options: ['Spreadsheet', 'Email and documents', 'My angel group\'s platform', 'Investment platform dashboards', 'My accountant or adviser', 'Nothing formal', 'Other (free text)'],
+      other: true, // "Other" reveals a free-text box
+    },
+    {
+      id: 'q5',
+      label: '5 / 7',
+      text: 'Which of these would make the biggest difference to you? Pick up to 3.',
+      type: 'multi',
+      required: true,
+      min: 1,
+      max: 3,
+      options: [
+        'All my investments in one place, across every group and platform',
+        'Tax relief certificates and documents in one place',
+        'Regular updates from my portfolio companies',
+        'Portfolio value and performance',
+        'Deals matched to what I invest in',
+        'Sharing deals and co-investing with angels I trust',
+        'Seeing angel investing alongside my other assets',
+        'None of these',
+      ],
+      other: false,
+    },
+    {
+      id: 'q6',
+      label: '6 / 7',
+      text: 'What is the most frustrating part of managing your angel investing today?',
+      type: 'text',
+      required: false,
+      placeholder: 'One sentence is plenty',
+      maxlength: 280,
+      hint: 'Optional · 280 character limit',
+    },
+    {
+      id: 'q7',
+      label: '7 / 7',
+      text: 'Happy to have a 20-minute call about this? Leave your email.',
+      type: 'email',
+      required: false,
+      helper: 'Only used to arrange the call. No mailing lists.',
+    },
+  ],
+  complete: {
+    heading: 'Thank you, that\'s really helpful.',
+    copy: 'Your answers will shape what we build for angels.',
+    subcopy: 'Know another angel who\'d have a view? Please pass the link on.',
+  },
+};
+
+const STATE = {
+  current: 0,
+  answers: {},
+  trafficSource: null,
+  completionTimeMs: null,
+  startTime: null,
+  submitted: false,
+};
+
+// ---------------------------------------------------------------------------
+// DOM refs
+// ---------------------------------------------------------------------------
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+const dom = {
+  intro: $('#introSlide'),
+  question: $('#questionSlide'),
+  complete: $('#completeSlide'),
+  startBtn: $('#startBtn'),
+  progressFill: $('#progressFill'),
+  progressLabel: $('#progressLabel'),
+  progressTotal: $('#progressTotal'),
+  questionNumber: $('#questionNumber'),
+  questionText: $('#questionText'),
+  optionsContainer: $('#optionsContainer'),
+  textInputContainer: $('#textInputContainer'),
+  textInput: $('#textInput'),
+  charCount: $('#charCount'),
+  questionHint: $('#questionHint'),
+  nextBtn: $('#nextBtn'),
+  completeSlide: $('#completeSlide'),
+  shareBtn: $('#shareBtn'),
+};
+
+// ---------------------------------------------------------------------------
+// Router
+// ---------------------------------------------------------------------------
+
+function showSlide(index) {
+  [dom.intro, dom.question, dom.complete].forEach((s, i) => {
+    s.classList.toggle('active', i === index);
+  });
+
+  if (index === 0) {
+    STATE.startTime = Date.now();
+    STATE.completionTimeMs = null;
+    dom.startBtn.disabled = false;
+    dom.nextBtn.disabled = true;
+    updateProgress(0);
+  } else if (index === 1) {
+    updateProgress(STATE.current);
+    renderQuestion(STATE.current);
+    dom.nextBtn.disabled = true;
+    dom.shareBtn.disabled = true;
+  } else {
+    // Completion slide
+    updateProgress(7);
+    dom.nextBtn.disabled = true;
+    dom.shareBtn.disabled = false;
+  }
+}
+
+function updateProgress(p) {
+  const pct = Math.min(100, ((p) / 7) * 100);
+  dom.progressFill.style.width = `${pct}%`;
+  dom.progressLabel.textContent = p < 7 ? String(p + 1) : 'Done';
+  dom.progressTotal.textContent = '7';
+}
+
+// ---------------------------------------------------------------------------
+// Question rendering
+// ---------------------------------------------------------------------------
+
+function currentQuestion() {
+  return SURVEY.questions[STATE.current];
+}
+
+function renderQuestion(index) {
+  const q = currentQuestion();
+  dom.questionNumber.textContent = q.label;
+  dom.questionText.textContent = q.text;
+  dom.questionHint.textContent = q.hint || '';
+  dom.textInputContainer.style.display = 'none';
+  dom.questionHint.style.display = 'none';
+
+  if (q.type === 'single') {
+    renderSingle(q);
+  } else if (q.type === 'multi') {
+    renderMulti(q);
+  } else if (q.type === 'text') {
+    renderText(q);
+  } else if (q.type === 'email') {
+    renderEmail(q);
+  }
+
+  // Wire the Next button
+  dom.nextBtn.addEventListener('click', () => nextQuestion());
+}
+
+function renderSingle(q) {
+  const frag = document.createDocumentFragment();
+  const anyClicked = !!STATE.answers[q.id];
+
+  q.options.forEach((opt) => {
+    const wrap = document.createElement('label');
+    wrap.className = 'option';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = q.id;
+    radio.value = opt;
+    radio.required = q.required;
+    if (anyClicked && STATE.answers[q.id] === opt) radio.checked = true;
+
+    const text = document.createElement('span');
+    text.className = 'option-text';
+    text.textContent = opt;
+
+    wrap.appendChild(radio);
+    wrap.appendChild(text);
+    frag.appendChild(wrap);
+  });
+
+  dom.optionsContainer.innerHTML = '';
+  dom.optionsContainer.appendChild(frag);
+
+  // Events: radio clicks auto-advance after a short delay.
+  dom.optionsContainer.querySelectorAll('input[type="radio"]').forEach((el) => {
+    el.addEventListener('change', () => {
+      if (!el.checked) return;
+      STATE.answers[q.id] = el.value;
+      if (el.value === 'Other (free text)') {
+        // "Other" in Q4 reveals a text box instead of auto-advancing.
+        toggleOther();
+        return;
+      }
+      dom.nextBtn.disabled = false;
+      // Auto-advance after 350ms.
+      setTimeout(() => {
+        if (!dom.nextBtn.disabled) nextQuestion();
+      }, 350);
+    });
+  });
+}
+
+function renderMulti(q) {
+  const frag = document.createDocumentFragment();
+
+  // Shuffle the options but keep "None of these" last.
+  const { options, noneIndex } = shuffleOptions(q.options);
+  const anyClicked = !!STATE.answers[q.id];
+
+  options.forEach((opt) => {
+    const wrap = document.createElement('label');
+    wrap.className = 'option';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = opt;
+    cb.checked = anyClicked && (STATE.answers[q.id] || []).includes(opt);
+    cb.setAttribute('aria-label', opt);
+
+    const text = document.createElement('span');
+    text.className = 'option-text';
+    text.textContent = opt;
+
+    wrap.appendChild(cb);
+    wrap.appendChild(text);
+    frag.appendChild(wrap);
+  });
+
+  dom.optionsContainer.innerHTML = '';
+  dom.optionsContainer.appendChild(frag);
+
+  dom.optionsContainer.querySelectorAll('input[type="checkbox"]').forEach((el) => {
+    el.addEventListener('change', () => {
+      if (!el.checked) return;
+      let selected = [...(STATE.answers[q.id] || [])];
+      if (el.value === 'None of these') {
+        // "None of these" is exclusive: clears all others.
+        selected = ['None of these'];
+      } else {
+        // Enforce max 3.
+        if (selected.length >= q.max) {
+          // Remove the first selected item to make room, or just don't add.
+          selected.shift();
+        }
+        if (!selected.includes(el.value)) selected.push(el.value);
+      }
+      STATE.answers[q.id] = selected;
+      if (selected.length >= q.min) {
+        dom.nextBtn.disabled = false;
+      }
+    });
+  });
+
+  // Re-apply "selected" class to labels when the state has changed elsewhere.
+  syncMultiLabels(q);
+}
+
+function syncMultiLabels(q) {
+  dom.optionsContainer.querySelectorAll('input[type="checkbox"]').forEach((el) => {
+    const wrap = el.closest('.option');
+    if (!wrap) return;
+    const val = el.value;
+    const selected = STATE.answers[q.id] || [];
+    if (selected.includes(val)) {
+      wrap.classList.add('selected');
+      el.checked = true;
+    } else {
+      wrap.classList.remove('selected');
+      el.checked = false;
+    }
+  });
+}
+
+// Fisher–Yates shuffle, keeping "None of these" anchored last.
+function shuffleOptions(options) {
+  const noneIndex = options.indexOf('None of these');
+  const none = options[noneIndex];
+  const others = options.filter((o) => o !== 'None of these');
+  const shuffled = [...others];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return { options: [...shuffled, none], noneIndex };
+}
+
+function renderText(q) {
+  dom.textInput.value = STATE.answers[q.id] || '';
+  dom.textInput.minLength = 1;
+  dom.charCount.textContent = `${dom.textInput.value.length} / ${q.maxlength}`;
+
+  dom.textInput.addEventListener('input', () => {
+    STATE.answers[q.id] = dom.textInput.value;
+    dom.charCount.textContent = `${dom.textInput.value.length} / ${q.maxlength}`;
+    dom.nextBtn.disabled = false;
+  });
+
+  // Trigger reflow to ensure the placeholder is visible before focusing.
+  requestAnimationFrame(() => {
+    // Auto-focus the text input.
+    dom.textInput.focus();
+    // Keep textarea on one line: adjust height on input.
+    dom.textInput.addEventListener('input', () => {
+      dom.textInput.style.height = 'auto';
+      dom.textInput.style.height = `${dom.textInput.scrollHeight}px`;
+    }, { once: true });
+  });
+}
+
+function renderEmail(q) {
+  dom.textInput.value = STATE.answers[q.id] || '';
+  dom.textInput.type = 'email';
+  dom.textInput.placeholder = q.placeholder || 'you@example.com';
+  dom.textInput.minLength = 5;
+  dom.textInput.maxLength = 254;
+
+  dom.textInput.addEventListener('input', () => {
+    STATE.answers[q.id] = dom.textInput.value;
+    dom.nextBtn.disabled = false;
+  });
+
+  requestAnimationFrame(() => {
+    dom.textInput.focus();
+    // Track length for char count.
+    dom.textInput.addEventListener('input', () => {
+      dom.charCount.textContent = `${dom.textInput.value.length} / 254`;
+    }, { once: true });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// "Other" toggle (Q4)
+// ---------------------------------------------------------------------------
+
+function toggleOther() {
+  const show = dom.textInputContainer.style.display === 'none';
+  dom.textInputContainer.style.display = show ? 'block' : 'none';
+  if (show) {
+    // Re-render the text question (Q4 is a text question under the hood).
+    const q = currentQuestion();
+    renderText(q);
+    dom.textInput.focus();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Navigation
+// ---------------------------------------------------------------------------
+
+function nextQuestion() {
+  const q = currentQuestion();
+
+  // Validate the current question before advancing.
+  if (!validateCurrent(q)) {
+    // Highlight the first invalid field and focus it.
+    const firstInvalid = document.querySelector('.option.invalid, .text-input.invalid');
+    if (firstInvalid) {
+      firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    return;
+  }
+
+  // Save answer state (done during input).
+  const idx = STATE.current;
+  STATE.current += 1;
+
+  if (STATE.current >= SURVEY.questions.length) {
+    completeSurvey();
+  } else {
+    showSlide(1);
+    renderQuestion(STATE.current);
+  }
+}
+
+function validateCurrent(q) {
+  const val = STATE.answers[q.id];
+
+  // Single-choice: a value must be selected.
+  if (q.type === 'single' && q.required) {
+    if (!val) {
+      highlightQuestion('Please make a selection.');
+      return false;
+    }
+    // Q4 "Other" requires text.
+    if (q.other && val === 'Other (free text)' && (!STATE.answers[q.id + '_other'] || STATE.answers[q.id + '_other'].trim() === '')) {
+      highlightQuestion('Please tell us a bit more.');
+      return false;
+    }
+  }
+
+  // Multi-choice: min/max selections.
+  if (q.type === 'multi' && q.required) {
+    const selected = STATE.answers[q.id] || [];
+    if (selected.length < q.min) {
+      highlightQuestion(`Please select at least ${q.min} option${q.max > 1 ? 's' : ''}.`);
+      return false;
+    }
+    if (selected.length > q.max) {
+      highlightQuestion(`Pick no more than ${q.max}.`);
+      return false;
+    }
+  }
+
+  // Text: 280 char limit.
+  if (q.type === 'text') {
+    const text = STATE.answers[q.id] || '';
+    if (text.length > q.maxlength) {
+      highlightQuestion('Keep it to 280 characters or fewer.');
+      dom.textInput.focus();
+      return false;
+    }
+  }
+
+  // Email: valid if filled.
+  if (q.type === 'email') {
+    const email = STATE.answers[q.id] || '';
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      highlightQuestion('Please enter a valid email address.');
+      dom.textInput.focus();
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function highlightQuestion(msg) {
+  dom.questionHint.textContent = msg;
+  dom.questionHint.style.color = 'var(--danger)';
+  dom.questionHint.style.display = 'block';
+  // Reset on next interaction.
+  setTimeout(() => {
+    if (dom.questionHint.style.display === 'block' && dom.questionHint.textContent === msg) {
+      dom.questionHint.textContent = '';
+    }
+  }, 2000);
+}
+
+// ---------------------------------------------------------------------------
+// Submission
+// ---------------------------------------------------------------------------
+
+async function completeSurvey() {
+  const q = currentQuestion();
+  const val = STATE.answers[q.id];
+
+  // Final validation.
+  if (!validateCurrent(q)) return;
+
+  // Record completion time.
+  STATE.completionTimeMs = Date.now() - STATE.startTime;
+
+  const answers = { ...STATE.answers };
+  // Include the "other" text if present.
+  if (q.other) {
+    answers[q.id + '_other'] = STATE.answers[q.id + '_other'] || '';
+  }
+
+  const submission = {
+    answers,
+    traffic_source: STATE.trafficSource,
+    completion_time_seconds: Math.round(STATE.completionTimeMs / 1000),
+  };
+
+  try {
+    const res = await fetch('/api/surveys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(submission),
+    });
+    if (!res.ok) {
+      throw new Error(`Server responded ${res.status}`);
+    }
+    STATE.submitted = true;
+    showCompletion();
+  } catch (err) {
+    // Fall back to a "thank you" screen even if the save failed, so the user
+    // is never blocked. We log the error for diagnostics.
+    console.error('[survey] submission failed:', err);
+    showCompletion();
+  }
+}
+
+function showCompletion() {
+  showSlide(2);
+  // Disable the start button now that we're complete.
+  dom.startBtn.disabled = true;
+  dom.nextBtn.disabled = true;
+  dom.shareBtn.disabled = false;
+}
+
+// ---------------------------------------------------------------------------
+// Share
+// ---------------------------------------------------------------------------
+
+function getSurveyUrl() {
+  const base = window.location.origin;
+  return `${base}/?src=survey`;
+}
+
+function copyLink() {
+  const url = getSurveyUrl();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      flashShareButton('Copied!');
+    });
+  } else {
+    // Fallback: select the text in a temporary textarea.
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      flashShareButton('Copied!');
+    } catch (e) {
+      console.error('[survey] copy failed:', e);
+    }
+    document.body.removeChild(ta);
+  }
+}
+
+function flashShareButton(msg) {
+  const old = dom.shareBtn.textContent;
+  dom.shareBtn.textContent = msg;
+  dom.shareBtn.classList.add('copied');
+  setTimeout(() => {
+    dom.shareBtn.textContent = old;
+    dom.shareBtn.classList.remove('copied');
+  }, 2000);
+}
+
+// ---------------------------------------------------------------------------
+// Traffic source
+// ---------------------------------------------------------------------------
+
+function detectTrafficSource() {
+  const params = new URLSearchParams(window.location.search);
+  const src = params.get('src');
+  if (src) {
+    STATE.trafficSource = src;
+  }
+  // Also read the referrer as a secondary signal.
+  if (!STATE.trafficSource && document.referrer) {
+    const referrer = document.referrer.split('/')[1] || 'direct';
+    STATE.trafficSource = referrer;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
+
+function init() {
+  detectTrafficSource();
+
+  dom.startBtn.addEventListener('click', () => {
+    dom.startBtn.disabled = true;
+    showSlide(1);
+    renderQuestion(0);
+  });
+
+  dom.nextBtn.addEventListener('click', nextQuestion);
+  dom.shareBtn.addEventListener('click', copyLink);
+
+  // Keyboard: Enter advances (when not in a textarea), Esc closes "Other".
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.target.matches('textarea, input')) {
+      if (dom.nextBtn.disabled) return;
+      nextQuestion();
+    }
+    if (e.key === 'Escape' && dom.textInputContainer.style.display === 'block') {
+      dom.textInputContainer.style.display = 'none';
+      renderQuestion(STATE.current);
+    }
+  });
+
+  // Pre-fill the "other" text if the query has a fallback (rare).
+  // Load the first question.
+  showSlide(0);
+  updateProgress(0);
+}
+
+document.addEventListener('DOMContentLoaded', init);
