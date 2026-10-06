@@ -47,7 +47,18 @@ const SURVEY = {
       text: 'What do you mainly use to keep track of your angel investments?',
       type: 'single',
       required: true,
-      options: ['Spreadsheet', 'Email and documents', 'My angel group\'s platform', 'Investment platform dashboards', 'My accountant or adviser', 'Nothing formal', 'Other (free text)'],
+      options: [
+        'Notion',
+        'Airtable',
+        'Zapier (and other automation)',
+        'Spreadsheet',
+        'Email and documents',
+        'My angel group\'s platform',
+        'Investment platform dashboards',
+        'My accountant or adviser',
+        'Nothing formal',
+        'Other (free text)',
+      ],
       other: true, // "Other" reveals a free-text box
     },
     {
