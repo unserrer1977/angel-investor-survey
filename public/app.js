@@ -83,10 +83,12 @@ const SURVEY = {
     {
       id: 'q7',
       label: '7 / 7',
-      text: 'Happy to have a 20-minute call about this? Leave your email.',
-      type: 'email',
+      text: 'Happy to have a 20-minute call about this?',
+      type: 'cta',
       required: false,
-      helper: 'Only used to arrange the call. No mailing lists.',
+      ctaUrl: 'https://cal.com/levine/angelos-demo',
+      ctaText: 'Book a 20-minute demo',
+      helper: 'Quick video call to see how AngelOS eliminates admin and automatically herds the cats.',
     },
   ],
   complete: {
@@ -191,6 +193,8 @@ function renderQuestion(index) {
     renderText(q);
   } else if (q.type === 'email') {
     renderEmail(q);
+  } else if (q.type === 'cta') {
+    renderCta(q);
   }
 
   // Wire the Next button
@@ -369,6 +373,28 @@ function renderEmail(q) {
   });
 }
 
+function renderCta(q) {
+  const btn = document.createElement('button');
+  btn.className = 'btn-primary btn-cta';
+  btn.textContent = q.ctaText;
+  btn.type = 'button';
+  btn.style.setProperty('--btn-bg', 'var(--primary)');
+  btn.addEventListener('click', () => {
+    window.open(q.ctaUrl, '_blank', 'noopener,noreferrer');
+  });
+
+  const hint = document.createElement('div');
+  hint.className = 'question-hint';
+  hint.textContent = q.helper;
+  hint.style.color = 'var(--text-muted)';
+  hint.style.display = 'block';
+
+  dom.questionHint.innerHTML = '';
+  dom.questionHint.appendChild(hint);
+  dom.questionHint.appendChild(btn);
+  dom.nextBtn.disabled = false;
+}
+
 // ---------------------------------------------------------------------------
 // "Other" toggle (Q4)
 // ---------------------------------------------------------------------------
@@ -448,16 +474,6 @@ function validateCurrent(q) {
     const text = STATE.answers[q.id] || '';
     if (text.length > q.maxlength) {
       highlightQuestion('Keep it to 280 characters or fewer.');
-      dom.textInput.focus();
-      return false;
-    }
-  }
-
-  // Email: valid if filled.
-  if (q.type === 'email') {
-    const email = STATE.answers[q.id] || '';
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      highlightQuestion('Please enter a valid email address.');
       dom.textInput.focus();
       return false;
     }

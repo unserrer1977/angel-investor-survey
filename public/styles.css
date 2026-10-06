@@ -391,6 +391,27 @@ html, body {
   color: #fff;
 }
 
+/* CTA button (Q7 — replaces email input) */
+.btn-cta {
+  width: 100%;
+  padding: 14px 20px;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.btn-cta:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
 /* Responsive */
 @media (max-width: 520px) {
   .progress-bar { padding: 14px 16px 12px; }
