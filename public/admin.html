@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Survey Admin — Angel Investor Survey</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/admin.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- Admin header -->
+    <header class="admin-header">
+      <div class="admin-header__title">
+        <span class="admin-header__badge">Admin</span>
+        <h1>Survey Responses</h1>
+        <p class="admin-header__subtitle">Angel Investor Survey · Individual angel investors</p>
+      </div>
+      <div class="admin-header__meta">
+        <span id="totalCount" class="admin-count">0 responses</span>
+        <span class="admin-header__meta-sep">|</span>
+        <span id="lastUpdated" class="admin-last-updated">Just now</span>
+      </div>
+    </header>
+
+    <!-- Filters -->
+    <div class="admin-filters">
+      <div class="admin-filters__group">
+        <label for="trafficSourceFilter">Traffic source</label>
+        <select id="trafficSourceFilter">
+          <option value="">All sources</option>
+          <option value="linkedin">linkedin</option>
+          <option value="direct">direct</option>
+          <option value="cal.com">cal.com</option>
+          <option value="survey">survey</option>
+        </select>
+      </div>
+      <div class="admin-filters__group">
+        <label for="q1Filter">Location (Q1)</label>
+        <select id="q1Filter">
+          <option value="">All locations</option>
+        </select>
+      </div>
+      <div class="admin-filters__group">
+        <label for="q2Filter">Portfolio size (Q2)</label>
+        <select id="q2Filter">
+          <option value="">All sizes</option>
+        </select>
+      </div>
+      <div class="admin-filters__group">
+        <label for="q3Filter">Groups count (Q3)</label>
+        <select id="q3Filter">
+          <option value="">All</option>
+        </select>
+      </div>
+      <div class="admin-filters__group">
+        <label for="q4Filter">Tools (Q4)</label>
+        <select id="q4Filter">
+          <option value="">All tools</option>
+        </select>
+      </div>
+      <div class="admin-filters__group admin-filters__group--demo">
+        <label for="yesnoFilter">Demo interest (Q7)</label>
+        <select id="yesnoFilter">
+          <option value="">All</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <button id="clearFilters" class="btn btn--ghost">Clear filters</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="admin-stats" id="stats">
+      <div class="admin-stat">
+        <span class="admin-stat__value" id="statTotal">0</span>
+        <span class="admin-stat__label">Total responses</span>
+      </div>
+      <div class="admin-stat">
+        <span class="admin-stat__value" id="statDemo">0</span>
+        <span class="admin-stat__label">Demo interest (Yes)</span>
+      </div>
+      <div class="admin-stat">
+        <span class="admin-stat__value" id="statDemoNo">0</span>
+        <span class="admin-stat__label">Demo interest (No)</span>
+      </div>
+      <div class="admin-stat">
+        <span class="admin-stat__value" id="statCompletion">0s</span>
+        <span class="admin-stat__label">Avg. completion time</span>
+      </div>
+    </div>
+
+    <!-- Results table -->
+    <div class="admin-results">
+      <div class="admin-table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Location<br/>(Q1)</th>
+              <th>Portfolio<br/>(Q2)</th>
+              <th>Groups<br/>(Q3)</th>
+              <th>Tools<br/>(Q4)</th>
+              <th>Frustration<br/>(Q6)</th>
+              <th>Demo<br/>(Q7)</th>
+              <th>Demo<br/>CTA</th>
+              <th>Time<br/>(s)</th>
+              <th>Source</th>
+              <th>Submitted</th>
+            </tr>
+          </thead>
+          <tbody id="surveyTableBody">
+            <tr>
+              <td colspan="11" class="admin-table__empty">No survey responses yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="admin-pagination" id="pagination"></div>
+    </div>
+  </div>
+
+  <script src="/admin.js"></script>
+</body>
+</html>

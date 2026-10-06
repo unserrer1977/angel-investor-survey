@@ -136,6 +136,51 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 405, { error: 'Method Not Allowed' });
   }
 
+  // Admin API: return all survey submissions (paginated).
+  if (urlPath === '/api/admin/surveys') {
+    if (req.method === 'GET') {
+      try {
+        const page = Math.max(1, parseInt(req.headers['x-page'] || '1', 10));
+        const limit = Math.max(1, Math.min(100, parseInt(req.headers['x-limit'] || '50', 10)));
+        const offset = (page - 1) * limit;
+
+        const db = openDb();
+        const countResult = db.prepare('SELECT COUNT(*) AS cnt FROM responses').get();
+        const total = countResult.cnt;
+        const rows = db.prepare('SELECT * FROM responses ORDER BY created_at DESC LIMIT ? OFFSET ?').all(limit, offset);
+
+        const surveys = rows.map((r) => {
+          const data = JSON.parse(r.answers || '{}');
+          return {
+            id: r.id,
+            q1: data.q1 || null,
+            q2: data.q2 || null,
+            q3: Array.isArray(data.q3) ? data.q3 : (data.q3 ? [data.q3] : null),
+            q4: Array.isArray(data.q4) ? data.q4 : (data.q4 ? [data.q4] : null),
+            q4_other: data['q4_other'] || null,
+            q5: Array.isArray(data.q5) ? data.q5 : (data.q5 ? [data.q5] : null),
+            q6: data.q6 || null,
+            q7: data.q7 || null,
+            yesno: data.q7 || null, // Q7 Yes/No
+            completion_time_seconds: data.completion_time_seconds || null,
+            traffic_source: r.traffic_source || null,
+            created_at: r.created_at,
+          };
+        });
+
+        return sendJson(res, 200, {
+          success: true,
+          surveys,
+          pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+        });
+      } catch (err) {
+        console.error('[survey] GET /api/admin/surveys error:', err);
+        return sendJson(res, 500, { error: 'Internal server error' });
+      }
+    }
+    return sendJson(res, 405, { error: 'Method Not Allowed' });
+  }
+
   // Static file route
   let filePath = path.join(PUBLIC_DIR, urlPath);
   if (!filePath.startsWith(PUBLIC_DIR)) {

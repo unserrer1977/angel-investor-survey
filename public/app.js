@@ -37,16 +37,25 @@ const SURVEY = {
       id: 'q3',
       label: '3 / 7',
       text: 'How many angel groups, networks or syndicates do you invest through?',
-      type: 'single',
+      type: 'multi',
       required: true,
-      options: ['None, I invest on my own', '1', '2 to 3', '4 or more'],
+      min: 1,
+      options: [
+        'None, I invest on my own',
+        '1',
+        '2 to 3',
+        '4 or more',
+        'I invest with a formal, named group',
+        'I invest with others on ad-hoc basis',
+      ],
     },
     {
       id: 'q4',
       label: '4 / 7',
       text: 'What do you mainly use to keep track of your angel investments?',
-      type: 'single',
+      type: 'multi',
       required: true,
+      min: 1,
       options: [
         'Notion',
         'Airtable',
@@ -59,7 +68,7 @@ const SURVEY = {
         'Nothing formal',
         'Other (free text)',
       ],
-      other: true, // "Other" reveals a free-text box
+      other: true,
     },
     {
       id: 'q5',
@@ -263,10 +272,10 @@ function renderSingle(q) {
 
 function renderMulti(q) {
   const frag = document.createDocumentFragment();
-
-  // Shuffle the options but keep "None of these" last.
-  const { options, noneIndex } = shuffleOptions(q.options);
   const anyClicked = !!STATE.answers[q.id];
+
+  // Shuffle Q5 options but keep "None of these" last.
+  const options = q.id === 'q5' ? shuffleOptions(q.options).options : q.options;
 
   options.forEach((opt) => {
     const wrap = document.createElement('label');
@@ -290,30 +299,50 @@ function renderMulti(q) {
   dom.optionsContainer.innerHTML = '';
   dom.optionsContainer.appendChild(frag);
 
+  // Wire up checkbox events.
   dom.optionsContainer.querySelectorAll('input[type="checkbox"]').forEach((el) => {
     el.addEventListener('change', () => {
-      if (!el.checked) return;
-      let selected = [...(STATE.answers[q.id] || [])];
-      if (el.value === 'None of these') {
-        // "None of these" is exclusive: clears all others.
-        selected = ['None of these'];
-      } else {
-        // Enforce max 3.
-        if (selected.length >= q.max) {
-          // Remove the first selected item to make room, or just don't add.
-          selected.shift();
+      const val = el.value;
+      if (!el.checked) {
+        // Unchecking - remove from selection.
+        STATE.answers[q.id] = (STATE.answers[q.id] || []).filter(v => v !== val);
+        if (val === 'Other (free text)') {
+          dom.textInputContainer.style.display = 'none';
+          const q = currentQuestion();
+          renderText(q);
         }
-        if (!selected.includes(el.value)) selected.push(el.value);
+        syncMultiLabels(q);
+        dom.nextBtn.disabled = (STATE.answers[q.id] || []).length >= 1;
+        return;
       }
+
+      // Checking - add to selection.
+      let selected = [...(STATE.answers[q.id] || [])];
+
+      // Q5: "None of these" is exclusive - clears all others.
+      if (q.id === 'q5' && val === 'None of these') {
+        selected = ['None of these'];
+      } else if (q.id === 'q4' && val === 'Other (free text)') {
+        // Q4: "Other" reveals a free-text box.
+        toggleOther();
+        return;
+      } else {
+        if (!selected.includes(val)) {
+          // Enforce max 3 for Q5.
+          if (q.id === 'q5' && selected.length >= q.max) {
+            selected.shift();
+          }
+          selected.push(val);
+        }
+      }
+
       STATE.answers[q.id] = selected;
-      if (selected.length >= q.min) {
+      if (selected.length >= 1) {
         dom.nextBtn.disabled = false;
       }
+      syncMultiLabels(q);
     });
   });
-
-  // Re-apply "selected" class to labels when the state has changed elsewhere.
-  syncMultiLabels(q);
 }
 
 function syncMultiLabels(q) {
@@ -524,12 +553,23 @@ function validateCurrent(q) {
   // Multi-choice: min/max selections.
   if (q.type === 'multi' && q.required) {
     const selected = STATE.answers[q.id] || [];
-    if (selected.length < q.min) {
-      highlightQuestion(`Please select at least ${q.min} option${q.max > 1 ? 's' : ''}.`);
+    const min = q.min || 1;
+    const max = q.max || Infinity;
+    if (selected.length < min) {
+      highlightQuestion(`Please select at least ${min} option${min > 1 ? 's' : ''}.`);
       return false;
     }
-    if (selected.length > q.max) {
-      highlightQuestion(`Pick no more than ${q.max}.`);
+    if (selected.length > max) {
+      highlightQuestion(`Pick no more than ${max}.`);
+      return false;
+    }
+  }
+
+  // Q4: "Other (free text)" requires free-text input.
+  if (q.id === 'q4' && Array.isArray(STATE.answers[q.id]) && STATE.answers[q.id].includes('Other (free text)')) {
+    const otherText = STATE.answers['q4_other'] || '';
+    if (!otherText.trim()) {
+      highlightQuestion('Please tell us a bit more.');
       return false;
     }
   }
