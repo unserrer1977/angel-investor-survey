@@ -328,23 +328,22 @@ function shuffleOptions(options) {
 }
 
 function renderText(q) {
-  dom.textInput.value = STATE.answers[q.id] || '';
+  // For Q4 "Other", the text box belongs to a sibling field q4_other.
+  const key = q.other ? `${q.id}_other` : q.id;
+  dom.textInput.value = STATE.answers[key] || '';
   dom.textInput.minLength = 1;
   dom.charCount.textContent = `${dom.textInput.value.length} / ${q.maxlength}`;
 
   dom.textInput.addEventListener('input', () => {
-    STATE.answers[q.id] = dom.textInput.value;
+    STATE.answers[key] = dom.textInput.value;
     dom.charCount.textContent = `${dom.textInput.value.length} / ${q.maxlength}`;
     dom.nextBtn.disabled = false;
   });
 
-  // Trigger reflow to ensure the placeholder is visible before focusing.
   requestAnimationFrame(() => {
-    // Auto-focus the text input.
     dom.textInput.focus();
-    // Keep textarea on one line: adjust height on input.
+    dom.textInput.style.height = 'auto';
     dom.textInput.addEventListener('input', () => {
-      dom.textInput.style.height = 'auto';
       dom.textInput.style.height = `${dom.textInput.scrollHeight}px`;
     }, { once: true });
   });
@@ -364,7 +363,6 @@ function renderEmail(q) {
 
   requestAnimationFrame(() => {
     dom.textInput.focus();
-    // Track length for char count.
     dom.textInput.addEventListener('input', () => {
       dom.charCount.textContent = `${dom.textInput.value.length} / 254`;
     }, { once: true });
