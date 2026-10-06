@@ -121,7 +121,7 @@ const server = http.createServer(async (req, res) => {
         ).run(
           id,
           JSON.stringify(payload),
-          payload.q7 ? now : null, // completion timestamp (only for completers)
+          now, // always set when the survey is submitted
           body.traffic_source,
           now
         );
