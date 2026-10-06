@@ -95,8 +95,9 @@ const SURVEY = {
       id: 'q7',
       label: '7 / 7',
       text: 'Interested in a quick demo of what we\'re building?',
-      type: 'cta',
-      required: false,
+      type: 'yesno',
+      required: true,
+      options: ['Yes', 'No'],
       ctaUrl: 'https://cal.com/levine/angelos-demo',
       ctaText: 'Book a 20-minute demo',
       helper: 'Quick video call to see how AngelOS eliminates admin and automatically herds the cats.',
@@ -206,6 +207,8 @@ function renderQuestion(index) {
     renderEmail(q);
   } else if (q.type === 'cta') {
     renderCta(q);
+  } else if (q.type === 'yesno') {
+    renderYesNo(q);
   }
 
   // Wire the Next button
@@ -407,6 +410,57 @@ function renderCta(q) {
 }
 
 // ---------------------------------------------------------------------------
+// Yes/No question (Q7)
+// ---------------------------------------------------------------------------
+
+function renderYesNo(q) {
+  const frag = document.createDocumentFragment();
+  const anyClicked = !!STATE.answers[q.id];
+  q.options.forEach((opt) => {
+    const wrap = document.createElement('label');
+    wrap.className = 'option';
+    const cb = document.createElement('input');
+    cb.type = 'radio';
+    cb.name = q.id;
+    cb.value = opt;
+    cb.required = q.required;
+    if (anyClicked && STATE.answers[q.id] === opt) cb.checked = true;
+    const text = document.createElement('span');
+    text.className = 'option-text';
+    text.textContent = opt;
+    wrap.appendChild(cb);
+    wrap.appendChild(text);
+    frag.appendChild(wrap);
+  });
+
+  dom.optionsContainer.innerHTML = '';
+  dom.optionsContainer.appendChild(frag);
+
+  dom.optionsContainer.querySelectorAll('input[type="radio"]').forEach((el) => {
+    el.addEventListener('change', () => {
+      if (!el.checked) return;
+      STATE.answers[q.id] = el.value;
+      dom.nextBtn.disabled = false;
+      renderCtaFor(q, el.value);
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CTA visibility for Yes/No
+// ---------------------------------------------------------------------------
+
+// Show CTA for 'Yes', hide for 'No' (and re-enable Next).
+function renderCtaFor(q, choice) {
+  dom.questionHint.innerHTML = '';
+  if (choice === 'Yes') {
+    renderCta(q);
+  } else {
+    dom.nextBtn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // "Other" toggle (Q4)
 // ---------------------------------------------------------------------------
 
@@ -427,22 +481,22 @@ function toggleOther() {
 
 function nextQuestion() {
   const q = currentQuestion();
+  if (!validateCurrent(q)) return;
+  const val = STATE.answers[q.id];
 
-  // Validate the current question before advancing.
-  if (!validateCurrent(q)) {
-    // Highlight the first invalid field and focus it.
-    const firstInvalid = document.querySelector('.option.invalid, .text-input.invalid');
-    if (firstInvalid) {
-      firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Yes/No handling: Yes → show CTA; No → completion.
+  if (q.type === 'yesno') {
+    if (val === 'Yes') {
+      renderCta(q);
       return;
     }
+    // 'No' → complete survey (skip CTA).
+    completeSurvey();
     return;
   }
 
-  // Save answer state (done during input).
-  const idx = STATE.current;
+  // Normal next.
   STATE.current += 1;
-
   if (STATE.current >= SURVEY.questions.length) {
     completeSurvey();
   } else {
@@ -486,6 +540,14 @@ function validateCurrent(q) {
     if (text.length > q.maxlength) {
       highlightQuestion('Keep it to 280 characters or fewer.');
       dom.textInput.focus();
+      return false;
+    }
+  }
+
+  // Yes/No: must select one.
+  if (q.type === 'yesno') {
+    if (!val) {
+      highlightQuestion('Please choose Yes or No.');
       return false;
     }
   }
