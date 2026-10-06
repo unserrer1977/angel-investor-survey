@@ -83,7 +83,7 @@ const SURVEY = {
     {
       id: 'q7',
       label: '7 / 7',
-      text: 'Happy to have a 20-minute call about this?',
+      text: 'Interested in a quick demo of what we\'re building?',
       type: 'cta',
       required: false,
       ctaUrl: 'https://cal.com/levine/angelos-demo',
